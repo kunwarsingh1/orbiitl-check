@@ -2,6 +2,7 @@ import type { Finding, ScanContext, ScanOptions, ScanResult } from "./types.js";
 import { checkOriginIp } from "./checks/origin-ip.js";
 import { checkExposedArtifacts } from "./checks/exposed-artifacts.js";
 import { checkHeaders } from "./checks/headers.js";
+import { checkBrowser } from "./checks/browser.js";
 import { RequestBudgetExceededError } from "./utils/rate-limit.js";
 
 export async function runScan(options: ScanOptions): Promise<ScanResult> {
@@ -18,6 +19,7 @@ export async function runScan(options: ScanOptions): Promise<ScanResult> {
   if (!options.skipOriginIp) checks.push({ name: "origin-ip", run: () => checkOriginIp(ctx, normalizedUrl) });
   if (!options.skipArtifacts) checks.push({ name: "exposed-artifacts", run: () => checkExposedArtifacts(ctx, normalizedUrl) });
   if (!options.skipHeaders) checks.push({ name: "headers", run: () => checkHeaders(ctx, normalizedUrl) });
+  if (options.deep) checks.push({ name: "browser", run: () => checkBrowser(ctx, normalizedUrl) });
 
   for (const check of checks) {
     try {

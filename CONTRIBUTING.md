@@ -40,6 +40,21 @@ npm run dev -- --app https://example.com --verbose
 - `src/report/*` — terminal/JSON/Markdown renderers. All three read the same
   `ScanResult`/`Finding` shape from `src/types.ts`.
 - `src/scanner.ts` — orchestrates checks and assembles the final `ScanResult`.
+- `src/mcp-server.ts` — MCP server wrapper exposing `scan_target`; calls
+  `runScan()` directly (no subprocess), so if you change `ScanOptions` or
+  `ScanResult` in `src/types.ts`, update this file's tool schema too.
+- `integrations/claude-code/production-checker/SKILL.md` — the Claude Code
+  skill shipped alongside the MCP server; update it if `Finding`'s fields
+  change, since it documents how an agent should read `stage`/`fixOwner`/
+  `confidence`.
+- `src/checks/browser.ts` — the `--deep` check. Dynamically `import("playwright")`
+  so the base package never requires it at install time (it's an
+  `optionalDependencies` entry); both the "module not installed" and
+  "Chromium binary not downloaded" failure modes must degrade to a logged
+  message + empty findings, never throw and abort the whole scan.
+- `Dockerfile` — packages `--deep` mode for environments that can't install
+  Chromium's system deps themselves. Only relevant to `--deep`; the default
+  scan never needs it.
 
 ## Adding a new check
 

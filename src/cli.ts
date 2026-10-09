@@ -25,6 +25,8 @@ program
   .option("--skip-origin-ip", "disable the origin IP / CDN-bypass check", false)
   .option("--skip-artifacts", "disable the exposed dev/build-artifact check", false)
   .option("--skip-headers", "disable the security-headers check", false)
+  .option("--deep", "launch a headless browser to catch console-logged secrets and leaked framework state (requires the optional 'playwright' dependency)", false)
+  .option("--screenshot <file>", "with --deep, save a full-page screenshot of the homepage to this path")
   .option("--no-color", "disable ANSI colors in terminal output")
   .option("--verbose", "log each probe as it happens", false)
   .version("0.1.0");
@@ -46,6 +48,8 @@ const options: ScanOptions = {
   skipHeaders: Boolean(opts.skipHeaders),
   color: opts.color !== false,
   verbose: Boolean(opts.verbose),
+  deep: Boolean(opts.deep),
+  screenshot: opts.screenshot,
 };
 
 function parseIntOption(value: string, fallback: number): number {

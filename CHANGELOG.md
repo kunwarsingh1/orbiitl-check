@@ -15,6 +15,27 @@ All notable changes to this project are documented here. Format follows
   to independently re-verify the finding.
 - `affectedFile` on exposed-artifact findings that can name a specific path.
 - Stage breakdown line in both the terminal and Markdown reports.
+- MCP server (`production-checker-mcp`, `src/mcp-server.ts`) exposing a
+  `scan_target` tool so any MCP-aware agent (Claude Code, Claude Desktop,
+  others) can run a scan in-process and get the same structured JSON back,
+  without shelling out or parsing terminal output.
+- Claude Code skill (`integrations/claude-code/production-checker/SKILL.md`)
+  documenting authorized-use checks and how to present `stage`-grouped
+  findings; install instructions in the README.
+- `--deep` mode (`src/checks/browser.ts`): optional headless-browser pass
+  (Playwright) that catches console-logged secrets (AWS/Google/Stripe/Slack
+  key shapes, bearer tokens) and framework state dumps
+  (`window.__NEXT_DATA__`/`__NUXT__`/`__INITIAL_STATE__`/etc.) that raw HTTP
+  fetching can't see. `playwright` is an `optionalDependencies` entry —
+  the base install doesn't pull in a Chromium download, and `--deep`
+  degrades gracefully (logs + continues the rest of the scan) if Playwright
+  or its browser binary isn't installed.
+- `--screenshot <file>`: with `--deep`, saves a full-page screenshot of the
+  homepage as visual evidence.
+- `Dockerfile` (based on Playwright's own image, which ships a matching
+  Chromium + system deps pre-installed) for running `--deep` mode in an
+  agent sandbox or locked-down CI runner without installing browser
+  dependencies on the host. The default scan doesn't need Docker.
 
 ## [0.1.0] - 2026-10-08
 

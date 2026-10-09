@@ -9,6 +9,7 @@ A CLI that audits a deployed web app for production-readiness leaks before someo
 - **Origin IP / CDN bypass** — checks whether the real server behind Cloudflare/Fastly/Akamai/etc. is directly reachable (via DNS history, certificate transparency logs, and common origin-revealing subdomains), confirming any candidate by connecting to it directly with the target's `Host` header and comparing the response to the real site.
 - **Exposed dev/build artifacts** — probes for `node_modules/`, unbuilt `.tsx`/`.jsx` source, sourcemaps, `.env`, `.git`, Python `__pycache__`/`manage.py`/`requirements.txt`, Docker files, backups, and more. Uses a baseline-404 fingerprint so custom error pages don't produce false positives.
 - **Security headers** — flags missing HSTS and version-leaking headers (`Server`, `X-Powered-By`).
+- **Deep mode (`--deep`, opt-in)** — launches a headless browser to catch what raw HTTP fetching can't see: secrets printed via `console.log` in the client bundle, and framework state dumps (`window.__NEXT_DATA__`, `__NUXT__`, `__INITIAL_STATE__`, etc.) that often carry more server data than the page renders.
 
 Works against Node/React/Next.js and Python (Django/Flask/FastAPI) apps.
 
@@ -42,6 +43,8 @@ production-checker --app https://target.com
 | `--skip-origin-ip` | off | Disable the origin IP / CDN-bypass check |
 | `--skip-artifacts` | off | Disable the exposed dev/build-artifact check |
 | `--skip-headers` | off | Disable the security-headers check |
+| `--deep` | off | Launch a headless browser for console-leak / framework-state-dump detection (see [Deep mode](#deep-mode---deep)) |
+| `--screenshot <file>` | — | With `--deep`, save a full-page screenshot of the homepage |
 | `--no-color` | — | Disable ANSI colors |
 | `--verbose` | off | Log each probe as it happens |
 
@@ -81,6 +84,90 @@ without re-parsing free text:
 
 ```bash
 production-checker --app https://target.com --output report.md --verbose
+```
+
+## Deep mode (`--deep`)
+
+The default scan is pure HTTP/DNS — fast, and all it needs is Node. `--deep`
+adds a headless-browser pass (via [Playwright](https://playwright.dev)) that
+actually renders the page, catching things raw fetching can't:
+
+- Secrets (AWS/Google/Stripe/Slack keys, bearer tokens) printed to the
+  console by leftover debug logging.
+- Framework state dumps (`window.__NEXT_DATA__`, `__NUXT__`,
+  `__INITIAL_STATE__`, `__APOLLO_STATE__`, …) — these often carry more
+  server-rendered data than the component actually uses.
+- Optionally, a full-page screenshot (`--screenshot report.png`) as visual
+  evidence for any findings.
+
+Playwright is an **optional** dependency — the base install/`npm install
+production-checker` doesn't pull in a Chromium download. To use `--deep`:
+
+```bash
+npm install playwright
+npx playwright install chromium
+production-checker --app https://target.com --deep
+```
+
+If Chromium isn't installed, `--deep` logs a clear message and the rest of
+the scan still runs normally — it doesn't fail the whole scan.
+
+### Running `--deep` in Docker
+
+If you're running this somewhere you can't (or don't want to) install
+Chromium's system dependencies yourself — an agent sandbox, a locked-down CI
+runner — use the provided image, which ships a matching Chromium build
+pre-installed:
+
+```bash
+docker build -t production-checker .
+docker run --rm production-checker --app https://target.com --deep --json
+```
+
+The default (non-`--deep`) scan doesn't need Docker at all; just run the CLI
+directly as shown above.
+
+## Using it from an AI agent (MCP)
+
+production-checker ships an [MCP](https://modelcontextprotocol.io) server
+exposing one tool, `scan_target`, whose output is the exact same
+`stage`/`fixOwner`/`confidence`-tagged JSON described above — no subprocess
+parsing needed by the agent.
+
+`scan_target` accepts a `deep: true` argument too, matching `--deep` — but
+note that requires the MCP server's own machine to have Playwright + Chromium
+installed (see [Deep mode](#deep-mode---deep) above); if they're missing, the
+tool call still succeeds, just without the browser-based findings.
+
+Add it to your MCP client config (Claude Desktop, Claude Code, etc.):
+
+```jsonc
+{
+  "mcpServers": {
+    "production-checker": {
+      "command": "npx",
+      "args": ["production-checker-mcp"]
+    }
+  }
+}
+```
+
+Or run it directly: `npx production-checker-mcp` (talks JSON-RPC over
+stdio — it's not meant to be run interactively).
+
+### Claude Code skill
+
+A skill that tells an agent how to use `scan_target` responsibly (authorization
+check first, how to group/present `stage`-tagged findings) lives at
+[`integrations/claude-code/production-checker/`](integrations/claude-code/production-checker/).
+Install it globally or per-project:
+
+```bash
+# Global (available in every project):
+cp -r integrations/claude-code/production-checker ~/.claude/skills/
+
+# Project-scoped (this project only):
+mkdir -p .claude/skills && cp -r integrations/claude-code/production-checker .claude/skills/
 ```
 
 ## Development

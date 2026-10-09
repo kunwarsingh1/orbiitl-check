@@ -1,9 +1,10 @@
 {
   "name": "production-checker",
   "version": "0.1.0",
-  "description": "CLI tool that audits deployed Node/Python web apps for production-readiness leaks: exposed origin IPs behind Cloudflare/CDN, leaked node_modules/source files, sourcemaps, .env, .git, and other dev artifacts.",
+  "description": "CLI + MCP server that audits deployed Node/Python web apps for production-readiness leaks: exposed origin IPs behind Cloudflare/CDN, leaked node_modules/source files, sourcemaps, .env, .git, and other dev artifacts, with an optional headless-browser deep scan for console-leaked secrets.",
   "bin": {
-    "production-checker": "dist/cli.js"
+    "production-checker": "dist/cli.js",
+    "production-checker-mcp": "dist/mcp-server.js"
   },
   "type": "module",
   "main": "dist/cli.js",
@@ -40,16 +41,24 @@
     "sourcemap",
     "recon",
     "pentest",
-    "owasp"
+    "owasp",
+    "mcp",
+    "model-context-protocol",
+    "playwright"
   ],
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "chalk": "^5.3.0",
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0",
     "vitest": "^5.0.3"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.64.0"
   }
 }

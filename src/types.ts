@@ -26,7 +26,7 @@ export interface Finding {
   id: string;
   title: string;
   severity: Severity;
-  category: "origin-ip" | "exposed-artifacts" | "headers";
+  category: "origin-ip" | "exposed-artifacts" | "headers" | "browser";
   stage: Stage;
   fixOwner: FixOwner;
   confidence: Confidence;
@@ -53,6 +53,10 @@ export interface ScanOptions {
   skipHeaders: boolean;
   color: boolean;
   verbose: boolean;
+  /** Opt-in: launch a headless browser (Playwright) to catch console-logged secrets and leaked framework state that raw HTTP fetching can't see. Requires the optional `playwright` dependency + a downloaded Chromium build. */
+  deep: boolean;
+  /** With --deep: save a full-page screenshot of the target's homepage to this path, as visual evidence. */
+  screenshot?: string;
 }
 
 export interface ScanResult {
