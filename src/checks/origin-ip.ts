@@ -39,19 +39,27 @@ export async function checkOriginIp(ctx: ScanContext, baseUrl: string): Promise<
       id: "origin-ip.cdn-detected",
       category: "origin-ip",
       severity: "info",
+      stage: "infrastructure",
+      fixOwner: "infra",
+      confidence: "confirmed",
       title: `Main domain is fronted by ${Array.from(mainCdnMatches).join(", ")}`,
       description:
         "The target domain resolves to a known CDN/WAF provider. This is good practice, but only protects traffic that goes through the CDN hostname -- the origin server itself may still be directly reachable.",
+      reproCommand: `dig +short ${domain}`,
     });
   } else if (mainResolved.addresses.length > 0) {
     findings.push({
       id: "origin-ip.no-cdn",
       category: "origin-ip",
       severity: "medium",
+      stage: "infrastructure",
+      fixOwner: "infra",
+      confidence: "confirmed",
       title: "Main domain does not appear to be behind a known CDN/WAF",
       description:
         `${domain} resolves directly to ${mainResolved.addresses.join(", ")}, which doesn't match any known CDN provider range. If this is intentional (e.g. you run your own reverse proxy/WAF), no action is needed -- otherwise the origin server is fully exposed to direct traffic, DDoS, and IP-based scanning.`,
       evidence: mainResolved.addresses.join(", "),
+      reproCommand: `dig +short ${domain}`,
     });
   }
 
@@ -126,9 +134,13 @@ export async function checkOriginIp(ctx: ScanContext, baseUrl: string): Promise<
         id: `origin-ip.candidate-unconfirmed.${candidate.ip}`,
         category: "origin-ip",
         severity: "info",
+        stage: "infrastructure",
+        fixOwner: "infra",
+        confidence: "unconfirmed",
         title: `Unconfirmed candidate origin IP: ${candidate.ip}`,
         description: `${candidate.hostname} resolves to ${candidate.ip}, which is not in any known CDN range. Could not confirm whether it serves the same application (homepage fingerprint unavailable).`,
         evidence: `${candidate.hostname} -> ${candidate.ip} (via ${candidate.source})`,
+        reproCommand: `curl -sk --resolve ${domain}:${url.port || (url.protocol === "https:" ? 443 : 80)}:${candidate.ip} ${url.protocol}//${domain}/`,
       });
       continue;
     }
@@ -147,12 +159,16 @@ export async function checkOriginIp(ctx: ScanContext, baseUrl: string): Promise<
         res.status === realFingerprint.status &&
         (candidateFingerprint.hash === realFingerprint.hash ||
           (candidateFingerprint.title !== "" && candidateFingerprint.title === realFingerprint.title));
+      const reproCommand = `curl -sk --resolve ${domain}:${url.port || (url.protocol === "https:" ? 443 : 80)}:${candidate.ip} ${url.protocol}//${domain}/`;
 
       if (matches) {
         findings.push({
           id: `origin-ip.confirmed.${candidate.ip}`,
           category: "origin-ip",
           severity: "high",
+          stage: "infrastructure",
+          fixOwner: "infra",
+          confidence: "confirmed",
           title: `Origin server exposed directly at ${candidate.ip} (bypasses CDN/WAF)`,
           description:
             `Connecting directly to ${candidate.ip} with Host: ${domain} returned the same page as the real site (status ${res.status}, title "${candidateFingerprint.title}"). ` +
@@ -161,15 +177,20 @@ export async function checkOriginIp(ctx: ScanContext, baseUrl: string): Promise<
           evidence: `${candidate.hostname} -> ${candidate.ip}`,
           remediation:
             "Restrict the origin server's firewall to only accept traffic from your CDN's published IP ranges, and/or rotate to a new origin IP not previously exposed via DNS history.",
+          reproCommand,
         });
       } else {
         findings.push({
           id: `origin-ip.candidate-unconfirmed.${candidate.ip}`,
           category: "origin-ip",
           severity: "low",
+          stage: "infrastructure",
+          fixOwner: "infra",
+          confidence: "unconfirmed",
           title: `Candidate IP found but did not match homepage: ${candidate.ip}`,
           description: `${candidate.hostname} resolves to ${candidate.ip} (not a known CDN range), but a direct request with Host: ${domain} returned a different page than the real site. Likely unrelated infrastructure, but worth a manual look.`,
           evidence: `${candidate.hostname} -> ${candidate.ip}, status ${res.status}`,
+          reproCommand,
         });
       }
     } catch (err) {
@@ -177,6 +198,9 @@ export async function checkOriginIp(ctx: ScanContext, baseUrl: string): Promise<
         id: `origin-ip.candidate-unreachable.${candidate.ip}`,
         category: "origin-ip",
         severity: "info",
+        stage: "infrastructure",
+        fixOwner: "infra",
+        confidence: "unconfirmed",
         title: `Candidate IP unreachable: ${candidate.ip}`,
         description: `${candidate.hostname} resolves to ${candidate.ip} (not a known CDN range), but a direct connection failed (${(err as Error).message}). Could not confirm or rule it out.`,
         evidence: `${candidate.hostname} -> ${candidate.ip}`,

@@ -21,6 +21,15 @@
     "prepublishOnly": "npm run build"
   },
   "license": "MIT",
+  "author": "kunwarsingh1 <kunwarsingh040126@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kunwarsingh1/production-checker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kunwarsingh1/production-checker/issues"
+  },
+  "homepage": "https://github.com/kunwarsingh1/production-checker#readme",
   "keywords": [
     "security",
     "cli",
@@ -29,7 +38,9 @@
     "origin-ip",
     "node_modules",
     "sourcemap",
-    "recon"
+    "recon",
+    "pentest",
+    "owasp"
   ],
   "dependencies": {
     "chalk": "^5.3.0",

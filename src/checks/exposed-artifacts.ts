@@ -57,16 +57,22 @@ export async function checkExposedArtifacts(ctx: ScanContext, baseUrl: string): 
   ctx.log(`Probing ${PROBE_PATHS.length} known dev/build-artifact paths...`);
   const probeTasks = PROBE_PATHS.map((probe) => async () => {
     try {
-      const res = await http.fetch(new URL(probe.path, base).toString());
+      const fullUrl = new URL(probe.path, base).toString();
+      const res = await http.fetch(fullUrl);
       if (isHit(res) && sanityCheck(res, probe)) {
         findings.push({
           id: `exposed-artifacts.${probe.path}`,
           category: "exposed-artifacts",
           severity: probe.severity,
+          stage: "development",
+          fixOwner: "ci-pipeline",
+          confidence: "confirmed",
           title: probe.title,
           description: `${probe.path} returned HTTP ${res.status} with content that doesn't match this site's 404 page, indicating it is actually served.`,
-          url: new URL(probe.path, base).toString(),
+          url: fullUrl,
           remediation: remediationFor(probe),
+          reproCommand: `curl -sI '${fullUrl}'`,
+          affectedFile: probe.path.replace(/^\//, ""),
         });
       }
     } catch (err) {
@@ -113,10 +119,15 @@ export async function checkExposedArtifacts(ctx: ScanContext, baseUrl: string): 
               id: `exposed-artifacts.sourcemap.${mapUrl}`,
               category: "exposed-artifacts",
               severity: "high",
+              stage: "development",
+              fixOwner: "ci-pipeline",
+              confidence: "confirmed",
               title: "Sourcemap exposed (full original source reconstructable)",
               description: `${bundleUrl} references a sourcemap at ${mapUrl}, which is publicly accessible. Sourcemaps let anyone reconstruct your original, unminified source code including comments and file paths.`,
               url: mapUrl,
               remediation: "Do not deploy .map files to production, or restrict access to them (e.g. via build config `productionBrowserSourceMaps: false` in Next.js, or excluding .map from the deploy artifact).",
+              reproCommand: `curl -s '${mapUrl}' | head -c 500`,
+              affectedFile: new URL(mapUrl).pathname.replace(/^\//, ""),
             });
           }
         } catch (err) {
@@ -135,10 +146,15 @@ export async function checkExposedArtifacts(ctx: ScanContext, baseUrl: string): 
               id: `exposed-artifacts.unbuilt-source.${guessUrl}`,
               category: "exposed-artifacts",
               severity: "high",
+              stage: "development",
+              fixOwner: "ci-pipeline",
+              confidence: "confirmed",
               title: `Unbuilt source file exposed (${ext})`,
               description: `${guessUrl} (derived by swapping the extension of a referenced bundle ${bundleUrl}) is publicly served and looks like unbuilt source code rather than a compiled bundle.`,
               url: guessUrl,
               remediation: "Ensure your web server / static host only serves the build output directory, not the project source tree.",
+              reproCommand: `curl -s '${guessUrl}' | head -c 500`,
+              affectedFile: new URL(guessUrl).pathname.replace(/^\//, ""),
             });
           }
         } catch (err) {

@@ -1,5 +1,11 @@
 import chalk from "chalk";
-import type { Finding, ScanResult, Severity } from "../types.js";
+import type { Finding, ScanResult, Severity, Stage } from "../types.js";
+
+const STAGE_LABEL: Record<Stage, string> = {
+  development: "development (code/build)",
+  deployment: "deployment (server config)",
+  infrastructure: "infrastructure (DNS/network)",
+};
 
 const SEVERITY_ORDER: Severity[] = ["high", "medium", "low", "info"];
 
@@ -35,6 +41,14 @@ export function renderTerminalReport(result: ScanResult): string {
       .filter(Boolean)
       .join("  ")
   );
+
+  const stageCounts: Record<Stage, number> = { development: 0, deployment: 0, infrastructure: 0 };
+  for (const f of result.findings) stageCounts[f.stage]++;
+  const stageLine = (Object.keys(stageCounts) as Stage[])
+    .filter((s) => stageCounts[s] > 0)
+    .map((s) => chalk.dim(`${stageCounts[s]} ${STAGE_LABEL[s]}`))
+    .join("  ");
+  if (stageLine) lines.push(stageLine);
   lines.push("");
 
   for (const severity of SEVERITY_ORDER) {
@@ -52,10 +66,14 @@ export function renderTerminalReport(result: ScanResult): string {
 
 function renderFinding(f: Finding): string {
   const parts: string[] = [];
-  parts.push(`  ${SEVERITY_COLOR[f.severity](f.severity)} ${chalk.bold(f.title)}`);
+  parts.push(
+    `  ${SEVERITY_COLOR[f.severity](f.severity)} ${chalk.bold(f.title)} ${chalk.dim(`[${f.stage}/${f.confidence}]`)}`
+  );
   parts.push(`    ${f.description}`);
+  if (f.affectedFile) parts.push(chalk.dim(`    file: ${f.affectedFile}`));
   if (f.url) parts.push(chalk.dim(`    url: ${f.url}`));
   if (f.evidence) parts.push(chalk.dim(`    evidence: ${f.evidence}`));
   if (f.remediation) parts.push(chalk.dim(`    fix: ${f.remediation}`));
+  if (f.reproCommand) parts.push(chalk.dim(`    repro: ${f.reproCommand}`));
   return parts.join("\n");
 }

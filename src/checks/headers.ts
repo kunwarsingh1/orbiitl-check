@@ -22,9 +22,14 @@ export async function checkHeaders(ctx: ScanContext, baseUrl: string): Promise<F
         id: `headers.version-leak.${headerName}`,
         category: "headers",
         severity: "low",
+        stage: "deployment",
+        fixOwner: "infra",
+        confidence: "confirmed",
         title: `${headerName} header reveals server/framework info`,
         description: `Response header "${headerName}: ${str}" discloses software/version details that can help an attacker target known vulnerabilities.`,
         remediation: `Suppress or generalize the "${headerName}" header at the web server/proxy level.`,
+        evidence: `${headerName}: ${str}`,
+        reproCommand: `curl -sI '${baseUrl}' | grep -i '${headerName}'`,
       });
     }
   }
@@ -35,8 +40,12 @@ export async function checkHeaders(ctx: ScanContext, baseUrl: string): Promise<F
       id: "headers.no-cdn-headers",
       category: "headers",
       severity: "info",
+      stage: "deployment",
+      fixOwner: "infra",
+      confidence: "confirmed",
       title: "No CDN/WAF response headers detected on the main site",
       description: "No common CDN markers (e.g. cf-ray) were seen in the homepage response headers. If you believe you're behind a CDN/WAF, confirm it's actually proxying this hostname.",
+      reproCommand: `curl -sI '${baseUrl}'`,
     });
   }
 
@@ -46,9 +55,13 @@ export async function checkHeaders(ctx: ScanContext, baseUrl: string): Promise<F
       id: "headers.no-hsts",
       category: "headers",
       severity: "low",
+      stage: "deployment",
+      fixOwner: "infra",
+      confidence: "confirmed",
       title: "Strict-Transport-Security header missing",
       description: "No HSTS header was found, so browsers won't automatically upgrade future requests to HTTPS for this domain.",
       remediation: "Add `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` once you're confident all subdomains serve HTTPS.",
+      reproCommand: `curl -sI '${baseUrl}' | grep -i strict-transport-security`,
     });
   }
 

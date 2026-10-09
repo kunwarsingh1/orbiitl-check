@@ -1,4 +1,4 @@
-import type { Finding, ScanResult, Severity } from "../types.js";
+import type { Finding, ScanResult, Severity, Stage } from "../types.js";
 
 const SEVERITY_ORDER: Severity[] = ["high", "medium", "low", "info"];
 const SEVERITY_EMOJI: Record<Severity, string> = {
@@ -6,6 +6,11 @@ const SEVERITY_EMOJI: Record<Severity, string> = {
   medium: "🟠",
   low: "🔵",
   info: "⚪",
+};
+const STAGE_LABEL: Record<Stage, string> = {
+  development: "development (code/build)",
+  deployment: "deployment (server config)",
+  infrastructure: "infrastructure (DNS/network)",
 };
 
 export function renderMarkdownReport(result: ScanResult): string {
@@ -25,6 +30,13 @@ export function renderMarkdownReport(result: ScanResult): string {
   lines.push(
     `**Summary:** ${counts.high} high, ${counts.medium} medium, ${counts.low} low, ${counts.info} info`
   );
+
+  const stageCounts: Record<Stage, number> = { development: 0, deployment: 0, infrastructure: 0 };
+  for (const f of result.findings) stageCounts[f.stage]++;
+  const stageParts = (Object.keys(stageCounts) as Stage[])
+    .filter((s) => stageCounts[s] > 0)
+    .map((s) => `${stageCounts[s]} ${STAGE_LABEL[s]}`);
+  if (stageParts.length > 0) lines.push(`**By stage:** ${stageParts.join(", ")}`);
   lines.push("");
 
   for (const severity of SEVERITY_ORDER) {
@@ -43,9 +55,13 @@ export function renderMarkdownReport(result: ScanResult): string {
 
 function renderFindingMd(f: Finding): string {
   const parts: string[] = [`### ${f.title}`, "", f.description];
-  if (f.url) parts.push(`\n- **URL:** ${f.url}`);
+  parts.push(`\n- **Stage:** ${f.stage} (owner: ${f.fixOwner})`);
+  parts.push(`- **Confidence:** ${f.confidence}`);
+  if (f.affectedFile) parts.push(`- **File:** ${f.affectedFile}`);
+  if (f.url) parts.push(`- **URL:** ${f.url}`);
   if (f.evidence) parts.push(`- **Evidence:** ${f.evidence}`);
   if (f.remediation) parts.push(`- **Fix:** ${f.remediation}`);
+  if (f.reproCommand) parts.push(`- **Repro:** \`${f.reproCommand}\``);
   return parts.join("\n");
 }
 
