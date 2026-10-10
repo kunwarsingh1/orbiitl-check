@@ -3,3 +3,13 @@ dist/
 *.log
 .DS_Store
 graphify-out/
+.env
+.env.*
+coverage/
+*.tgz
+.vscode/
+.idea/
+# local scan output
+report.md
+report.html
+bulk.*
