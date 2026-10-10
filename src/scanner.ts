@@ -4,6 +4,7 @@ import { checkExposedArtifacts } from "./checks/exposed-artifacts.js";
 import { checkHeaders } from "./checks/headers.js";
 import { checkBrowser } from "./checks/browser.js";
 import { RequestBudgetExceededError } from "./utils/rate-limit.js";
+import { rawFetch } from "./net/http.js";
 
 export async function runScan(options: ScanOptions): Promise<ScanResult> {
   const startedAt = new Date();
@@ -14,6 +15,14 @@ export async function runScan(options: ScanOptions): Promise<ScanResult> {
   const findings: Finding[] = [];
 
   const normalizedUrl = normalizeTarget(options.app);
+
+  // Every check swallows network errors per request, so an unreachable host would
+  // otherwise come back as a clean "no findings" - a false all-clear. Fail loudly instead.
+  try {
+    await rawFetch(normalizedUrl, { timeoutMs: options.timeout, followRedirects: false, maxBodyBytes: 1024 });
+  } catch (err) {
+    throw new Error(`target unreachable (${(err as Error).message || "connection failed"})`);
+  }
 
   const checks: Array<{ name: string; run: () => Promise<Finding[]> }> = [];
   if (!options.skipOriginIp) checks.push({ name: "origin-ip", run: () => checkOriginIp(ctx, normalizedUrl) });

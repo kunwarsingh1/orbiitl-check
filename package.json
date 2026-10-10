@@ -1,10 +1,10 @@
 {
-  "name": "production-checker",
+  "name": "orbiitl-check",
   "version": "0.1.0",
   "description": "CLI + MCP server that audits deployed Node/Python web apps for production-readiness leaks: exposed origin IPs behind Cloudflare/CDN, leaked node_modules/source files, sourcemaps, .env, .git, and other dev artifacts, with an optional headless-browser deep scan for console-leaked secrets.",
   "bin": {
-    "production-checker": "dist/cli.js",
-    "production-checker-mcp": "dist/mcp-server.js"
+    "orbiitl-check": "dist/cli.js",
+    "orbiitl-check-mcp": "dist/mcp-server.js"
   },
   "type": "module",
   "main": "dist/cli.js",
@@ -25,12 +25,12 @@
   "author": "kunwarsingh1 <kunwarsingh040126@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kunwarsingh1/production-checker.git"
+    "url": "git+https://github.com/kunwarsingh1/orbiitl-check.git"
   },
   "bugs": {
-    "url": "https://github.com/kunwarsingh1/production-checker/issues"
+    "url": "https://github.com/kunwarsingh1/orbiitl-check/issues"
   },
-  "homepage": "https://github.com/kunwarsingh1/production-checker#readme",
+  "homepage": "https://github.com/kunwarsingh1/orbiitl-check#readme",
   "keywords": [
     "security",
     "cli",

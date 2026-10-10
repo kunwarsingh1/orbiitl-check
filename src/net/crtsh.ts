@@ -16,7 +16,7 @@ export async function queryCrtSh(domain: string, timeoutMs: number): Promise<str
   try {
     const res = await fetch(url, {
       signal: controller.signal,
-      headers: { "User-Agent": "production-checker/0.1" },
+      headers: { "User-Agent": "orbiitl-check/0.1" },
     });
     if (!res.ok) return [];
     const text = await res.text();

@@ -1,5 +1,6 @@
 import * as http from "node:http";
 import * as https from "node:https";
+import { isIP } from "node:net";
 import { URL } from "node:url";
 import { Throttle, RequestBudgetExceededError } from "../utils/rate-limit.js";
 import type { ScanContext } from "../types.js";
@@ -8,6 +9,8 @@ export interface FetchResult {
   status: number;
   headers: Record<string, string | string[] | undefined>;
   body: string;
+  /** Last ~4KB of the response, kept even when `body` was truncated (e.g. trailing `//# sourceMappingURL=` comments). */
+  tail: string;
   bodyTruncated: boolean;
   finalUrl: string;
 }
@@ -23,6 +26,7 @@ export interface FetchOpts {
   extraHeaders?: Record<string, string>;
 }
 
+const TAIL_BYTES = 4 * 1024;
 const DEFAULT_MAX_BODY = 512 * 1024; // 512KB cap, plenty to fingerprint pages/bundles without downloading huge files
 
 /**
@@ -45,14 +49,15 @@ export function rawFetch(targetUrl: string, opts: FetchOpts): Promise<FetchResul
       path: url.pathname + url.search,
       headers: {
         Host: host,
-        "User-Agent": "production-checker/0.1 (+https://www.npmjs.com/package/production-checker)",
+        "User-Agent": "orbiitl-check/0.1 (+https://www.npmjs.com/package/orbiitl-check)",
         Accept: "*/*",
         ...opts.extraHeaders,
       },
       timeout: opts.timeoutMs,
     };
     if (isHttps) {
-      (requestOptions as https.RequestOptions).servername = host;
+      // SNI must be a hostname; sending an IP literal as SNI is invalid (and deprecated in Node).
+      if (!isIP(host.replace(/^\[|\]$/g, ""))) (requestOptions as https.RequestOptions).servername = host;
       (requestOptions as https.RequestOptions).rejectUnauthorized = false; // origin IPs often have mismatched/self-signed certs; we're fingerprinting, not trusting
     }
 
@@ -61,8 +66,11 @@ export function rawFetch(targetUrl: string, opts: FetchOpts): Promise<FetchResul
       let total = 0;
       const maxBytes = opts.maxBodyBytes ?? DEFAULT_MAX_BODY;
       let truncated = false;
+      let tailBuf: Buffer = Buffer.alloc(0);
 
       res.on("data", (chunk: Buffer) => {
+        tailBuf = Buffer.concat([tailBuf, chunk]);
+        if (tailBuf.length > TAIL_BYTES) tailBuf = tailBuf.subarray(tailBuf.length - TAIL_BYTES);
         if (total >= maxBytes) {
           truncated = true;
           return;
@@ -73,6 +81,7 @@ export function rawFetch(targetUrl: string, opts: FetchOpts): Promise<FetchResul
 
       res.on("end", () => {
         const body = Buffer.concat(chunks).toString("utf8");
+        const tail = tailBuf.toString("utf8");
         const status = res.statusCode ?? 0;
 
         const redirect = status >= 300 && status < 400 && res.headers.location;
@@ -81,7 +90,7 @@ export function rawFetch(targetUrl: string, opts: FetchOpts): Promise<FetchResul
           try {
             nextUrl = new URL(res.headers.location as string, targetUrl).toString();
           } catch {
-            resolve({ status, headers: res.headers, body, bodyTruncated: truncated, finalUrl: targetUrl });
+            resolve({ status, headers: res.headers, body, tail, bodyTruncated: truncated, finalUrl: targetUrl });
             return;
           }
           // Only follow once, and only if we're not overriding the connect IP
@@ -93,7 +102,7 @@ export function rawFetch(targetUrl: string, opts: FetchOpts): Promise<FetchResul
           }
         }
 
-        resolve({ status, headers: res.headers, body, bodyTruncated: truncated, finalUrl: targetUrl });
+        resolve({ status, headers: res.headers, body, tail, bodyTruncated: truncated, finalUrl: targetUrl });
       });
     });
 

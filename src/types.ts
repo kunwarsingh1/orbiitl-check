@@ -12,8 +12,14 @@ export type Severity = "info" | "low" | "medium" | "high";
  */
 export type Stage = "development" | "deployment" | "infrastructure";
 
-/** Who would actually make the fix - mirrors `stage` but phrased for routing/ownership rather than root cause. */
-export type FixOwner = "code" | "infra" | "ci-pipeline";
+/**
+ * Who would actually make the fix - mirrors `stage` but phrased for routing/ownership rather than root cause.
+ * - "code": the application source repo (CSP in next.config.js, console.log secrets).
+ * - "ci-pipeline": build/deploy artifact config (don't ship .map files, .env, node_modules).
+ * - "deployment": the reverse proxy / server config that serves the app (redirects, headers).
+ * - "infra": DNS, CDN/WAF, firewall, hosting network.
+ */
+export type FixOwner = "code" | "ci-pipeline" | "deployment" | "infra";
 
 /**
  * How sure we are this finding is real, distinct from `severity` (which is
@@ -27,7 +33,14 @@ export interface Finding {
   title: string;
   severity: Severity;
   category: "origin-ip" | "exposed-artifacts" | "headers" | "browser";
+  /** The layer where the root cause lives (the primary place to fix it). */
   stage: Stage;
+  /**
+   * Other layers where the same problem can also be fixed or mitigated, e.g. a
+   * shipped sourcemap is a build problem (stage "development") that can also be
+   * blocked at the proxy ("deployment"). Omitted when there is only one place to fix it.
+   */
+  alsoFixableAt?: Stage[];
   fixOwner: FixOwner;
   confidence: Confidence;
   description: string;

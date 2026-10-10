@@ -1,9 +1,9 @@
 ---
-name: production-checker
+name: orbiitl-check
 description: Audit a deployed web app for production-readiness leaks - exposed origin IP bypassing its CDN/WAF, leaked node_modules/.env/.git/sourcemaps/unbuilt source, and missing security headers. Trigger on "is this app production ready", "check this site for leaks", "can I bypass the CDN on this domain", or when asked to audit/pentest a URL the user owns or is authorized to test.
 ---
 
-# /production-checker
+# /orbiitl-check
 
 Audits a deployed web app (Node/React/Next.js or Python/Django/Flask/FastAPI)
 for exposure that doesn't show up in a normal code review: an origin server
@@ -21,6 +21,13 @@ site"), ask before scanning. Do not scan a third-party domain on a vague
 request like "check if example.com is secure" without confirming authorization
 first.
 
+**Disclaimer:** orbiitl-check is for education and for auditing systems the
+user owns or is explicitly authorized to test. The author(s) and contributors
+have no connection to, and accept no responsibility for, any misuse or
+malicious activity carried out with it. For bulk runs (`--list`) the user must
+state that they own or are authorized to test every host in the file before
+you pass `--confirm-authorized`.
+
 ## How to run it
 
 **Preferred: MCP tool, if `scan_target` is available.** Call it directly:
@@ -37,12 +44,12 @@ no parsing needed.
 **Fallback: shell out to the CLI** if the MCP tool isn't configured:
 
 ```bash
-npx production-checker --app https://target.com --json
+npx orbiitl-check --app https://target.com --json
 ```
 
 (If neither is available yet in this environment, `npm install -g
-production-checker` first, or guide the user through
-`npx production-checker-mcp` as an MCP server entry in their client config —
+orbiitl-check` first, or guide the user through
+`npx orbiitl-check-mcp` as an MCP server entry in their client config —
 see this package's README.)
 
 ## Reading the result
@@ -56,8 +63,9 @@ don't just dump the list:
   headers; fix is in nginx/the reverse proxy), or `infrastructure`
   (DNS/firewall/hosting — origin IP bypasses the CDN; fix is outside the
   app's code entirely).
-- **`fixOwner`**: `code` / `ci-pipeline` / `infra` — who would actually make
-  the fix. Useful for routing when summarizing to a team.
+- **`fixOwner`**: `code` / `ci-pipeline` / `deployment` / `infra` — who would
+  actually make the fix. Present `stage` to the user as "code level",
+  "deployment level" or "infra level". Useful for routing when summarizing to a team.
 - **`confidence`**: `confirmed` / `likely` / `unconfirmed`. A `high`-severity
   finding can still be `unconfirmed` (e.g. a candidate origin IP that
   resolved but couldn't be reached to verify) — say so plainly, don't

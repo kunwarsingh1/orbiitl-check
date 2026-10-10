@@ -6,6 +6,7 @@ import { ORIGIN_CANDIDATE_SUBDOMAINS } from "../config/subdomains.js";
 import { HttpClient } from "../net/http.js";
 import { runPool } from "../utils/concurrency.js";
 import type { Finding, ScanContext } from "../types.js";
+import { RequestBudgetExceededError } from "../utils/rate-limit.js";
 import { simpleHash, extractTitle } from "../utils/fingerprint.js";
 
 interface Candidate {
@@ -71,6 +72,20 @@ export async function checkOriginIp(ctx: ScanContext, baseUrl: string): Promise<
     realFingerprint = { status: res.status, title: extractTitle(res.body), hash: simpleHash(res.body) };
   } catch {
     ctx.log("  (could not fetch homepage for fingerprinting; origin confirmation will be skipped)");
+  }
+
+  // When there's no CDN in front, the A/AAAA record IS the origin. Check how it
+  // behaves when addressed directly: bare IP (no vhost) vs. with the Host header.
+  if (mainCdnMatches.size === 0 && mainResolved.addresses.length > 0 && realFingerprint) {
+    // The earlier fingerprint followed redirects; direct probes don't, so re-fetch the real site un-followed to compare like with like.
+    let directReal: Fingerprint = realFingerprint;
+    try {
+      const raw = await http.fetch(baseUrl, { followRedirects: false });
+      directReal = { status: raw.status, title: extractTitle(raw.body), hash: simpleHash(raw.body) };
+    } catch {
+      // keep the redirect-followed fingerprint
+    }
+    findings.push(...(await probeDirectIps(ctx, http, url, mainResolved.addresses, directReal)));
   }
 
   // --- Gather candidate hostnames/IPs ---
@@ -208,5 +223,88 @@ export async function checkOriginIp(ctx: ScanContext, baseUrl: string): Promise<
     }
   }
 
+  return findings;
+}
+
+type Fingerprint = { status: number; title: string; hash: string };
+
+/**
+ * Direct-IP reachability for an origin that isn't behind a CDN: request the
+ * bare IP over https/http (no Host/SNI for the real site), and https with the
+ * real Host header, and compare each against the real homepage fingerprint.
+ */
+async function probeDirectIps(
+  ctx: ScanContext,
+  http: HttpClient,
+  url: URL,
+  addresses: string[],
+  real: Fingerprint
+): Promise<Finding[]> {
+  const findings: Finding[] = [];
+  const domain = url.hostname;
+  const sameAsReal = (res: { status: number; body: string }): boolean =>
+    res.status === real.status &&
+    (simpleHash(res.body) === real.hash || (extractTitle(res.body) !== "" && extractTitle(res.body) === real.title));
+
+  for (const ip of addresses.slice(0, 4)) {
+    const hostLiteral = ip.includes(":") ? `[${ip}]` : ip;
+    const kind = ip.includes(":") ? "IPv6" : "IPv4";
+    const describe = (res: { status: number; headers: Record<string, string | string[] | undefined> } | null): string =>
+      res === null ? "unreachable" : `HTTP ${res.status}${res.headers["location"] ? ` -> ${res.headers["location"]}` : ""}`;
+    const tryFetch = async (scheme: "http" | "https", withHost: boolean) => {
+      try {
+        return await http.fetch(`${scheme}://${hostLiteral}/`, {
+          connectIp: ip,
+          hostnameForTlsAndHost: withHost ? domain : hostLiteral,
+          followRedirects: false,
+        });
+      } catch (err) {
+        if (err instanceof RequestBudgetExceededError) throw err;
+        return null;
+      }
+    };
+
+    ctx.log(`Probing ${kind} ${ip} directly (bare IP and with Host: ${domain})...`);
+    const bareHttps = await tryFetch("https", false);
+    const bareHttp = await tryFetch("http", false);
+    const hostHttps = await tryFetch("https", true);
+    const bareServesApp = [bareHttps, bareHttp].some((r) => r !== null && sameAsReal(r));
+    const hostServesApp = hostHttps !== null && sameAsReal(hostHttps);
+    const evidence = [
+      `bare https://${hostLiteral}/ : ${describe(bareHttps)}`,
+      `bare http://${hostLiteral}/ : ${describe(bareHttp)}`,
+      `https://${hostLiteral}/ with Host: ${domain} : ${describe(hostHttps)}`,
+    ].join("\n");
+    const reproCommand = `curl -sIk https://${hostLiteral}/ ; curl -sI http://${hostLiteral}/ ; curl -sIk --resolve ${domain}:443:${ip} https://${domain}/`;
+
+    if (bareServesApp) {
+      findings.push({
+        id: `origin-ip.direct-ip-serves-app.${ip}`,
+        category: "origin-ip",
+        severity: "low",
+        stage: "infrastructure",
+        fixOwner: "infra",
+        confidence: "confirmed",
+        title: `Origin ${kind} ${ip} serves the app when addressed by bare IP`,
+        description: `Requesting ${ip} directly, without the ${domain} Host/SNI, returns the same page as the real site. The default vhost should refuse or return a blank response so IP scanners can't fingerprint or reach the app.`,
+        evidence,
+        remediation: "Make the proxy's default vhost reject unknown Host headers / SNI, and restrict the origin firewall to CDN ranges if one is added.",
+        reproCommand,
+      });
+    } else if (hostServesApp) {
+      findings.push({
+        id: `origin-ip.direct-ip-reachable.${ip}`,
+        category: "origin-ip",
+        severity: "info",
+        stage: "infrastructure",
+        fixOwner: "infra",
+        confidence: "confirmed",
+        title: `Origin ${kind} ${ip} is directly reachable (no CDN/WAF in path)`,
+        description: `${ip} serves the real site when addressed with Host: ${domain}; bare-IP requests do not serve the app. Nothing sits in front of the origin, so any traffic filtering must be done on the host itself.`,
+        evidence,
+        reproCommand,
+      });
+    }
+  }
   return findings;
 }

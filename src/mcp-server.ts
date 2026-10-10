@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * MCP (Model Context Protocol) server wrapper around production-checker.
+ * MCP (Model Context Protocol) server wrapper around orbiitl-check.
  *
  * This is deliberately a thin shell: it exposes one tool, `scan_target`,
- * whose output IS the same ScanResult/Finding shape as `production-checker
+ * whose output IS the same ScanResult/Finding shape as `orbiitl-check
  * --json` -- no translation layer, so any MCP-aware agent (Claude Code,
  * Claude Desktop, or others) gets the structured stage/fixOwner/confidence
  * fields directly, and calls `runScan()` in-process rather than shelling
  * out to a subprocess.
  *
- * Run standalone: `production-checker-mcp` (stdio transport).
- * Configure in an MCP client as a command: `npx production-checker-mcp`.
+ * Run standalone: `orbiitl-check-mcp` (stdio transport).
+ * Configure in an MCP client as a command: `npx orbiitl-check-mcp`.
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -19,7 +19,7 @@ import { runScan } from "./scanner.js";
 import type { ScanOptions } from "./types.js";
 
 const server = new McpServer({
-  name: "production-checker",
+  name: "orbiitl-check",
   version: "0.1.0",
 });
 
@@ -32,8 +32,9 @@ server.registerTool(
       "confirmed by connecting directly to candidate IPs; (2) exposed dev/build artifacts (node_modules, .env, .git, " +
       "sourcemaps, unbuilt .tsx/.jsx source, Python requirements.txt/manage.py/__pycache__, Docker files, backups); " +
       "(3) missing/leaky security headers. Each finding is tagged with `stage` (development/deployment/infrastructure) " +
-      "and `fixOwner` (code/infra/ci-pipeline) so results can be routed without re-parsing free text. " +
-      "Only scan targets you own or are explicitly authorized to test.",
+      "and `fixOwner` (code/ci-pipeline/deployment/infra) so results can be routed without re-parsing free text. " +
+      "Only scan targets you own or are explicitly authorized to test. For education and authorized security " +
+      "auditing only; the author(s) and contributors accept no responsibility for misuse.",
     inputSchema: {
       app: z.string().describe("Target base URL, e.g. https://target.com"),
       concurrency: z.number().int().positive().optional().describe("Max concurrent requests (default 5)"),
@@ -90,6 +91,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("production-checker-mcp failed to start:", err);
+  console.error("orbiitl-check-mcp failed to start:", err);
   process.exit(1);
 });

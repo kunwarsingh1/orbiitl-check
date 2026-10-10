@@ -1,4 +1,6 @@
 import type { Finding, ScanResult, Severity, Stage } from "../types.js";
+import { LEVEL_LABEL, levelTag } from "./labels.js";
+import type { FailedTarget } from "./json.js";
 
 const SEVERITY_ORDER: Severity[] = ["high", "medium", "low", "info"];
 const SEVERITY_EMOJI: Record<Severity, string> = {
@@ -7,15 +9,10 @@ const SEVERITY_EMOJI: Record<Severity, string> = {
   low: "🔵",
   info: "⚪",
 };
-const STAGE_LABEL: Record<Stage, string> = {
-  development: "development (code/build)",
-  deployment: "deployment (server config)",
-  infrastructure: "infrastructure (DNS/network)",
-};
 
 export function renderMarkdownReport(result: ScanResult): string {
   const lines: string[] = [];
-  lines.push(`# production-checker report: ${result.target}`);
+  lines.push(`# orbiitl-check report: ${result.target}`);
   lines.push("");
   lines.push(`Scanned in ${(result.durationMs / 1000).toFixed(1)}s, ${result.requestsMade} requests, on ${result.finishedAt}.`);
   lines.push("");
@@ -35,8 +32,8 @@ export function renderMarkdownReport(result: ScanResult): string {
   for (const f of result.findings) stageCounts[f.stage]++;
   const stageParts = (Object.keys(stageCounts) as Stage[])
     .filter((s) => stageCounts[s] > 0)
-    .map((s) => `${stageCounts[s]} ${STAGE_LABEL[s]}`);
-  if (stageParts.length > 0) lines.push(`**By stage:** ${stageParts.join(", ")}`);
+    .map((s) => `${stageCounts[s]} ${LEVEL_LABEL[s]}`);
+  if (stageParts.length > 0) lines.push(`**By level:** ${stageParts.join(", ")}`);
   lines.push("");
 
   for (const severity of SEVERITY_ORDER) {
@@ -55,7 +52,7 @@ export function renderMarkdownReport(result: ScanResult): string {
 
 function renderFindingMd(f: Finding): string {
   const parts: string[] = [`### ${f.title}`, "", f.description];
-  parts.push(`\n- **Stage:** ${f.stage} (owner: ${f.fixOwner})`);
+  parts.push(`\n- **Level:** ${levelTag(f)} (primary stage: ${f.stage}, fix owner: ${f.fixOwner})`);
   parts.push(`- **Confidence:** ${f.confidence}`);
   if (f.affectedFile) parts.push(`- **File:** ${f.affectedFile}`);
   if (f.url) parts.push(`- **URL:** ${f.url}`);
@@ -65,8 +62,47 @@ function renderFindingMd(f: Finding): string {
   return parts.join("\n");
 }
 
+/** Bulk report: an overview table, then each target's full report. */
+export function renderBulkMarkdownReport(results: ScanResult[], failed: FailedTarget[] = []): string {
+  const count = (r: ScanResult, s: Severity) => r.findings.filter((f) => f.severity === s).length;
+  const rows = results
+    .map((r) => ({ r, high: count(r, "high"), medium: count(r, "medium"), low: count(r, "low"), info: count(r, "info") }))
+    .sort((a, b) => b.high - a.high || b.medium - a.medium || b.low - a.low || a.r.target.localeCompare(b.r.target));
+
+  const lines: string[] = [];
+  lines.push("# orbiitl-check bulk report");
+  lines.push("");
+  lines.push(`${results.length} scanned, ${failed.length} failed.`);
+  lines.push("");
+  lines.push("| Target | High | Medium | Low | Info |");
+  lines.push("|---|---:|---:|---:|---:|");
+  for (const x of rows) lines.push(`| ${x.r.target} | ${x.high} | ${x.medium} | ${x.low} | ${x.info} |`);
+  for (const f of failed) lines.push(`| ${f.target} | failed: ${f.error} | | | |`);
+  lines.push("");
+  for (const x of rows) {
+    lines.push("---");
+    lines.push("");
+    // Demote each per-target report one level so the document has a single H1.
+    lines.push(
+      renderMarkdownReport(x.r)
+        .split("\n")
+        .map((l) => (/^#{1,3} /.test(l) ? `#${l}` : l))
+        .join("\n")
+    );
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
 export function renderHtmlReport(result: ScanResult): string {
-  const md = renderMarkdownReport(result);
+  return markdownToHtml(renderMarkdownReport(result), `orbiitl-check report: ${result.target}`);
+}
+
+export function renderBulkHtmlReport(results: ScanResult[], failed: FailedTarget[] = []): string {
+  return markdownToHtml(renderBulkMarkdownReport(results, failed), "orbiitl-check bulk report");
+}
+
+function markdownToHtml(md: string, title: string): string {
   // Minimal, dependency-free Markdown->HTML: good enough for a quick shareable file
   // without pulling in a full markdown parser dependency.
   const escaped = md
@@ -85,7 +121,7 @@ export function renderHtmlReport(result: ScanResult): string {
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>production-checker report: ${escapeHtml(result.target)}</title>
+<title>${escapeHtml(title)}</title>
 <style>
   body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 860px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; }
   h1 { border-bottom: 2px solid #eee; padding-bottom: .5rem; }
