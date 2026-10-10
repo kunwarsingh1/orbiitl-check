@@ -1,4 +1,4 @@
-# Contributing to production-checker
+# Contributing to orbiitl-check
 
 Thanks for considering a contribution. This is a young project, so the bar
 for a useful PR is low — fixing a bug, tightening a false-positive check, or
@@ -17,9 +17,8 @@ adding a new check for a real-world leak pattern are all welcome.
 ## Development setup
 
 ```bash
-git clone https://github.com/kunwarsingh1/production-checker.git
-cd production-checker
-npm install
+git clone https://github.com/kunwarsingh1/orbiitl-check.git
+cd orbiitl-checknpm install
 npm run build
 npm test
 ```
@@ -43,7 +42,7 @@ npm run dev -- --app https://example.com --verbose
 - `src/mcp-server.ts` — MCP server wrapper exposing `scan_target`; calls
   `runScan()` directly (no subprocess), so if you change `ScanOptions` or
   `ScanResult` in `src/types.ts`, update this file's tool schema too.
-- `integrations/claude-code/production-checker/SKILL.md` — the Claude Code
+- `integrations/claude-code/orbiitl-check/SKILL.md` — the Claude Code
   skill shipped alongside the MCP server; update it if `Finding`'s fields
   change, since it documents how an agent should read `stage`/`fixOwner`/
   `confidence`.
@@ -94,3 +93,10 @@ rationale for why the path/range is worth checking.
 - Be explicit in the PR body if your change affects default scan behavior
   (request volume, timing, new paths probed by default) — these need extra
   scrutiny since this tool runs against other people's infrastructure.
+
+## Docs to update with a new check
+
+- Add its finding ID(s), severity and layer to [docs/checks.md](docs/checks.md).
+- Add a fix snippet to [docs/fixing-findings.md](docs/fixing-findings.md) if the
+  fix is not obvious.
+- Note it under `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md).

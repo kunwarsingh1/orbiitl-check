@@ -1,8 +1,12 @@
 # orbiitl-check
 
-[![CI](https://github.com/kunwarsingh1/production-checker/actions/workflows/ci.yml/badge.svg)](https://github.com/kunwarsingh1/production-checker/actions/workflows/ci.yml)
+> Audit a deployed web app for production-readiness leaks before someone else finds them.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](package.json)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+**Contents:** [What it checks](#what-it-checks) · [Install](#install) · [Usage](#usage) · [Bulk scanning](#bulk-scanning---list) · [Deep mode](#deep-mode---deep) · [MCP / AI agents](#using-it-from-an-ai-agent-mcp) · [Docs](#documentation) · [Limitations](#limitations) · [Contributing](#contributing) · [Disclaimer](#disclaimer)
 
 A CLI that audits a deployed web app for production-readiness leaks before someone else finds them:
 
@@ -16,6 +20,43 @@ Works against Node/React/Next.js and Python (Django/Flask/FastAPI) apps.
 > ⚠️ **Authorized use only.** Only scan targets you own or are explicitly authorized to test. This tool makes real HTTP requests and DNS lookups against the target.
 >
 > **Disclaimer:** orbiitl-check is for education and for auditing systems you own or are explicitly authorized to test. Scanning systems without permission may be illegal. The author(s) and contributors have no connection to, and accept no responsibility for, any misuse or malicious activity carried out with this tool.
+
+## What it checks
+
+| Area | Examples | Fix lives at |
+|---|---|---|
+| **Origin IP / CDN bypass** | Origin reachable around Cloudflare/CloudFront; bare IP serves the app; no CDN/WAF | infra level |
+| **Leaked artifacts** | `.env`, `.git`, `node_modules/`, `package.json`, sourcemaps (and what they list), unbuilt `.tsx` source | code + deployment level |
+| **Transport & headers** | HTTP not redirected to HTTPS, HSTS, CSP, clickjacking, nosniff/referrer/permissions, `Server`/`X-Powered-By` | deployment level |
+| **Browser leaks** (`--deep`) | Secrets in `console.log`, framework state dumps, React DevTools hook | code level |
+
+Each finding says which layer to fix it at: **code level**, **deployment level**
+or **infra level**. The full list of finding IDs is in [docs/checks.md](docs/checks.md).
+
+### Sample output (abridged, illustrative)
+
+```text
+orbiitl-check  ·  https://app.example.com/
+scanned in 18.4s · 49 requests
+
+────────────────────────────────────────────────────────────────────
+Findings   ✖ 1 high   ▲ 2 medium   ● 1 low   ℹ 0 info
+Layers      1  code level (app source / build)
+            2  deployment level (server config)
+            1  infra level (DNS / CDN / network)
+────────────────────────────────────────────────────────────────────
+
+HIGH (1)
+
+  ✖ Sourcemap exposed (full original source reconstructable)
+    code level + deployment level · confirmed
+    What     .../assets/index-CSk3Agkr.js references a sourcemap which is publicly
+             accessible. Parsed map lists 2425 source file(s): 257 application (src),
+             2168 from node_modules; sourcesContent IS embedded.
+    URL      https://app.example.com/assets/index-CSk3Agkr.js.map
+    Fix      Do not deploy .map files to production. Stopgap: block *.map at the proxy.
+    Verify   curl -s 'https://app.example.com/assets/index-CSk3Agkr.js.map' | head -c 500
+```
 
 ## Install
 
@@ -82,7 +123,13 @@ orbiitl-check --list domains.txt --confirm-authorized --json --output bulk.md
   result. Exit code is `1` if any target has a HIGH finding, `2` if no target
   could be scanned.
 
-Exit code is `1` if any HIGH-severity finding is reported (handy in CI), `0` otherwise.
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Scan completed, no high-severity findings |
+| `1` | At least one high-severity finding |
+| `2` | The scan could not run (bad arguments, unreadable list, or no target could be reached) |
 
 ### Finding shape (`--json`)
 
@@ -227,6 +274,28 @@ npm test                                    # run unit tests
 npm run build                               # compile to dist/
 ```
 
+## Documentation
+
+| Doc | What's in it |
+|---|---|
+| [docs/checks.md](docs/checks.md) | Every finding ID, its severity, layer and meaning |
+| [docs/fixing-findings.md](docs/fixing-findings.md) | Caddy / nginx / Next.js / Vite snippets for each fix |
+| [examples/domains.txt](examples/domains.txt) | Sample targets file for `--list` |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Project layout, how to add a check, review bar |
+| [CHANGELOG.md](CHANGELOG.md) | What changed |
+| [SECURITY.md](SECURITY.md) | Responsible use, and how to report a vulnerability in this tool |
+| [SUPPORT.md](SUPPORT.md) | Where to ask for help |
+
+## Limitations
+
+- It does not log in, so anything behind authentication is not checked.
+- It looks for leaks and misconfiguration; it does not test application logic,
+  injection or dependency vulnerabilities.
+- Heuristics can be wrong: a HIGH finding can still be `unconfirmed`, and a
+  clean report is not proof of security.
+- Lazy chunk URLs built at runtime by a bundler (not written out literally) are
+  not discovered.
+
 ## Contributing
 
 PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the project layout,
@@ -242,4 +311,11 @@ you own or are explicitly authorized to test.
 ## License
 
 [MIT](LICENSE)
-# orbiitl-check
+
+## Disclaimer
+
+orbiitl-check is for education and for auditing systems you own or are
+explicitly authorized to test. Scanning systems without permission may be
+illegal. The author(s) and contributors have no connection to, and accept no
+responsibility for, any misuse or malicious activity carried out with this tool.
+It is provided "as is" under the [MIT License](LICENSE).

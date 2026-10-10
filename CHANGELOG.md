@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format follows
 ## [Unreleased]
 
 ### Added
+- Bulk mode: `--list <file>` scans many domains/subdomains from a text file, one
+  at a time, with `--confirm-authorized` (required) and `--max-targets`
+  (default 100). Bulk terminal summary, bulk `--json`, and combined `.md`/`.html`
+  reports.
+- Authorized-use disclaimer in the README, SECURITY.md, `--help`, the MCP tool
+  description and the Claude Code skill.
+- `levels`/`alsoFixableAt` on findings and a `summary` block in `--json`;
+  reports label findings as code / deployment / infra level.
+- A target that can't be reached is now an error, not an empty "no findings" result.
 - `stage` (`development`/`deployment`/`infrastructure`), `fixOwner`
   (`code`/`infra`/`ci-pipeline`), and `confidence`
   (`confirmed`/`likely`/`unconfirmed`) fields on every `Finding`, so a scan's
@@ -15,11 +24,11 @@ All notable changes to this project are documented here. Format follows
   to independently re-verify the finding.
 - `affectedFile` on exposed-artifact findings that can name a specific path.
 - Stage breakdown line in both the terminal and Markdown reports.
-- MCP server (`production-checker-mcp`, `src/mcp-server.ts`) exposing a
+- MCP server (`orbiitl-check-mcp`, `src/mcp-server.ts`) exposing a
   `scan_target` tool so any MCP-aware agent (Claude Code, Claude Desktop,
   others) can run a scan in-process and get the same structured JSON back,
   without shelling out or parsing terminal output.
-- Claude Code skill (`integrations/claude-code/production-checker/SKILL.md`)
+- Claude Code skill (`integrations/claude-code/orbiitl-check/SKILL.md`)
   documenting authorized-use checks and how to present `stage`-grouped
   findings; install instructions in the README.
 - `--deep` mode (`src/checks/browser.ts`): optional headless-browser pass
@@ -40,7 +49,7 @@ All notable changes to this project are documented here. Format follows
 ## [0.1.0] - 2026-10-08
 
 ### Added
-- Initial release: `production-checker --app <url>` CLI.
+- Initial release: `orbiitl-check --app <url>` CLI.
 - Origin IP / CDN-bypass detection via DNS, crt.sh certificate transparency
   lookups, and a common origin-revealing subdomain wordlist, confirmed by
   connecting directly to candidate IPs with the target's Host header/SNI.

@@ -1,0 +1,10 @@
+# Example targets file for `orbiitl-check --list`.
+# One domain, subdomain or URL per line. "#" starts a comment.
+# Only list hosts you own or are explicitly authorized to test.
+#
+#   orbiitl-check --list examples/domains.txt --confirm-authorized
+#
+app.example.com
+api.example.com
+staging.example.com   # trailing comments are fine
+https://admin.example.com/login

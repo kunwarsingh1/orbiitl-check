@@ -5,7 +5,7 @@ title: ""
 labels: bug
 ---
 
-**Note:** if this is a security vulnerability in production-checker itself
+**Note:** if this is a security vulnerability in orbiitl-check itself
 (not a finding it reported about a target), please follow [SECURITY.md](../../SECURITY.md)
 instead of opening a public issue.
 
@@ -16,10 +16,10 @@ instead of opening a public issue.
 **How to reproduce**
 - Command run (redact the real target domain if it's sensitive):
   ```
-  production-checker --app https://REDACTED --json
+  orbiitl-check --app https://REDACTED --json
   ```
 - Node version (`node -v`):
-- production-checker version (`npm ls production-checker` or the npm version you installed):
+- orbiitl-check version (`npm ls orbiitl-check` or the npm version you installed):
 - OS:
 
 **Relevant output**

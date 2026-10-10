@@ -1,4 +1,4 @@
-# production-checker, packaged for environments that can't (or shouldn't)
+# orbiitl-check, packaged for environments that can't (or shouldn't)
 # install Chromium's system dependencies themselves - e.g. an agent sandbox,
 # a locked-down CI runner, or anywhere you want `--deep` mode reproducible
 # without touching the host. The default (non---deep) scan doesn't need this

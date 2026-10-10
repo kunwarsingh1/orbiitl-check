@@ -2,7 +2,7 @@
 
 ## Responsible use of this tool
 
-`production-checker` makes real HTTP requests, DNS lookups, and direct-to-IP
+`orbiitl-check` makes real HTTP requests, DNS lookups, and direct-to-IP
 connections against the target you pass via `--app`. It is intended for:
 
 - Auditing your own applications and infrastructure.
@@ -17,21 +17,28 @@ infrastructure may violate computer-crime laws (e.g. the U.S. CFAA, UK
 Computer Misuse Act, or equivalent legislation elsewhere) regardless of
 intent. You are solely responsible for how you use this tool.
 
-The maintainers are not responsible for misuse. Issues or PRs that request
-features intended for mass/unauthorized scanning (e.g. removing rate limits
-by default, adding target-list/batch-scanning modes without an explicit
-authorization flag) will be declined.
+**Disclaimer.** orbiitl-check is for education and for auditing systems you
+own or are explicitly authorized to test. The author(s) and contributors have
+no connection to, and accept no responsibility for, any misuse or malicious
+activity carried out with this tool.
 
-## Reporting a vulnerability in production-checker itself
+Bulk scanning (`--list`) exists so people can check their own estate of
+domains and subdomains. It requires an explicit `--confirm-authorized` flag
+and refuses very large lists by default. Issues or PRs that request features
+intended for mass/unauthorized scanning (e.g. removing rate limits by default,
+removing the authorization flag, or hiding the tool's identity) will be
+declined.
+
+## Reporting a vulnerability in orbiitl-check itself
 
 If you find a security issue in this tool's own code (e.g. a way a malicious
 *target* could exploit a scan to compromise the machine running
-`production-checker` — SSRF pivoting, path traversal via `--output`, RCE via
+`orbiitl-check` — SSRF pivoting, path traversal via `--output`, RCE via
 a crafted response, etc.), please report it privately rather than opening a
 public issue:
 
 - Email: kunwarsingh040126@gmail.com
-- Subject line: `[SECURITY] production-checker — <short description>`
+- Subject line: `[SECURITY] orbiitl-check — <short description>`
 
 Please include:
 - The version/commit affected.

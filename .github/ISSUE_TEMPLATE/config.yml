@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability in orbiitl-check itself
+    url: https://github.com/kunwarsingh1/orbiitl-check/blob/main/SECURITY.md
+    about: Please do not open a public issue for vulnerabilities in this tool; follow SECURITY.md.
+  - name: Questions and ideas
+    url: https://github.com/kunwarsingh1/orbiitl-check/discussions
+    about: Ask questions or float ideas before opening an issue (enable Discussions on the repo).
