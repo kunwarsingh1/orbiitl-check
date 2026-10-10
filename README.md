@@ -1,4 +1,4 @@
-# production-checker
+# orbiitl-check
 
 [![CI](https://github.com/kunwarsingh1/production-checker/actions/workflows/ci.yml/badge.svg)](https://github.com/kunwarsingh1/production-checker/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -13,20 +13,22 @@ A CLI that audits a deployed web app for production-readiness leaks before someo
 
 Works against Node/React/Next.js and Python (Django/Flask/FastAPI) apps.
 
-> ⚠️ Only scan targets you own or are explicitly authorized to test. This tool makes real HTTP requests and DNS lookups against the target.
+> ⚠️ **Authorized use only.** Only scan targets you own or are explicitly authorized to test. This tool makes real HTTP requests and DNS lookups against the target.
+>
+> **Disclaimer:** orbiitl-check is for education and for auditing systems you own or are explicitly authorized to test. Scanning systems without permission may be illegal. The author(s) and contributors have no connection to, and accept no responsibility for, any misuse or malicious activity carried out with this tool.
 
 ## Install
 
 ```bash
 npm install
 npm run build
-npm link   # optional: makes `production-checker` available globally
+npm link   # optional: makes `orbiitl-check` available globally
 ```
 
 ## Usage
 
 ```bash
-production-checker --app https://target.com
+orbiitl-check --app https://target.com
 ```
 
 ### Options
@@ -34,6 +36,9 @@ production-checker --app https://target.com
 | Flag | Default | Description |
 |---|---|---|
 | `--app <url>` | required | Target base URL |
+| `--list <file>` | — | Bulk mode: text file with one domain, subdomain or URL per line (see [Bulk scanning](#bulk-scanning---list)). Use instead of `--app` |
+| `--confirm-authorized` | off | Required with `--list`: confirms you own or are authorized to test every target in the file |
+| `--max-targets <n>` | 100 | Bulk mode: refuse lists longer than this |
 | `--json` | off | Emit JSON to stdout instead of the terminal report |
 | `--output <file>` | — | Write a `.md` or `.html` report to disk |
 | `--concurrency <n>` | 5 | Max concurrent requests |
@@ -48,9 +53,45 @@ production-checker --app https://target.com
 | `--no-color` | — | Disable ANSI colors |
 | `--verbose` | off | Log each probe as it happens |
 
+### Bulk scanning (`--list`)
+
+Check many of your own domains and subdomains in one run:
+
+```text
+# domains.txt - one per line, "#" starts a comment, bare hosts get https://
+app.example.com
+api.example.com
+https://staging.example.com/  # explicit URL is fine
+```
+
+```bash
+orbiitl-check --list domains.txt --confirm-authorized
+orbiitl-check --list domains.txt --confirm-authorized --json --output bulk.md
+```
+
+- Targets are scanned **one at a time**; `--max-requests`, `--delay` etc. apply per target.
+- Blank lines, comments and duplicates are ignored. Wildcards (`*.example.com`)
+  and malformed lines are skipped with a message that names the line.
+- `--confirm-authorized` is mandatory: you are stating that you own, or have
+  explicit permission to test, **every** host in the file. Lists longer than
+  `--max-targets` (default 100) are refused.
+- Output: each target's report, then a summary table (worst target first).
+  `--json` prints one document with `summary`, a worst-first `overview`,
+  per-target `results`, and `failed`; `--output` writes a combined `.md`/`.html`.
+- A target that can't be reached is reported as **failed**, never as a clean
+  result. Exit code is `1` if any target has a HIGH finding, `2` if no target
+  could be scanned.
+
 Exit code is `1` if any HIGH-severity finding is reported (handy in CI), `0` otherwise.
 
 ### Finding shape (`--json`)
+
+`--json` prints one document: a `summary` block (counts by severity and by
+level, plus the `exitCode` the CLI will use), then `findings` sorted worst-first.
+Every finding has the same keys; missing values are `null`/`[]`, never absent.
+`levels` lists where it can be fixed (`code`, `deployment`, `infrastructure`),
+primary first, matching the "code level / deployment level / infra level" tags
+in the terminal report.
 
 Every finding is tagged with *where the root cause lives* and *how sure we
 are*, so the output is routable by a script, a CI gate, or an AI agent
@@ -61,7 +102,7 @@ without re-parsing free text:
   "id": "origin-ip.confirmed.203.0.113.9",
   "severity": "high",
   "stage": "infrastructure",      // "development" | "deployment" | "infrastructure"
-  "fixOwner": "infra",            // "code" | "infra" | "ci-pipeline"
+  "fixOwner": "infra",            // "code" | "ci-pipeline" | "deployment" | "infra"
   "confidence": "confirmed",      // "confirmed" | "likely" | "unconfirmed"
   "title": "Origin server exposed directly at 203.0.113.9 (bypasses CDN/WAF)",
   "description": "...",
@@ -70,10 +111,18 @@ without re-parsing free text:
 }
 ```
 
-- **`stage`** — `development` (baked into the build/repo: shipped sourcemaps,
-  committed `node_modules`, unbuilt source served — fix in build config/CI),
-  `deployment` (server/proxy config — fix in nginx/headers), or
-  `infrastructure` (DNS/firewall/hosting — fix outside the app entirely).
+- **`stage`** — which layer the problem lives in. The terminal/markdown
+  reports label these **code level**, **deployment level** and **infra level**:
+  `development` = code level (baked into the build/repo: shipped sourcemaps,
+  committed `node_modules`, unbuilt source served — fix in app source/build
+  config/CI), `deployment` = deployment level (server/proxy config: HTTPS
+  redirect, security headers — fix in Caddy/nginx), `infrastructure` = infra
+  level (DNS/CDN/firewall/hosting — fix outside the app and its server config).
+- **`alsoFixableAt`** — optional list of other layers where the same problem can
+  also be fixed or mitigated (e.g. a shipped sourcemap is a code/build problem
+  that can also be blocked at the proxy). Reports show these as
+  `code level + deployment level`.
+- **`fixOwner`** — who makes the fix: `code`, `ci-pipeline`, `deployment` or `infra`.
 - **`confidence`** — distinct from severity: a HIGH finding can still be
   `unconfirmed` (e.g. a candidate origin IP that resolved but couldn't be
   reached to verify).
@@ -83,7 +132,7 @@ without re-parsing free text:
 ## Example
 
 ```bash
-production-checker --app https://target.com --output report.md --verbose
+orbiitl-check --app https://target.com --output report.md --verbose
 ```
 
 ## Deep mode (`--deep`)
@@ -101,12 +150,12 @@ actually renders the page, catching things raw fetching can't:
   evidence for any findings.
 
 Playwright is an **optional** dependency — the base install/`npm install
-production-checker` doesn't pull in a Chromium download. To use `--deep`:
+orbiitl-check` doesn't pull in a Chromium download. To use `--deep`:
 
 ```bash
 npm install playwright
 npx playwright install chromium
-production-checker --app https://target.com --deep
+orbiitl-check --app https://target.com --deep
 ```
 
 If Chromium isn't installed, `--deep` logs a clear message and the rest of
@@ -120,8 +169,8 @@ runner — use the provided image, which ships a matching Chromium build
 pre-installed:
 
 ```bash
-docker build -t production-checker .
-docker run --rm production-checker --app https://target.com --deep --json
+docker build -t orbiitl-check .
+docker run --rm orbiitl-check --app https://target.com --deep --json
 ```
 
 The default (non-`--deep`) scan doesn't need Docker at all; just run the CLI
@@ -129,7 +178,7 @@ directly as shown above.
 
 ## Using it from an AI agent (MCP)
 
-production-checker ships an [MCP](https://modelcontextprotocol.io) server
+orbiitl-check ships an [MCP](https://modelcontextprotocol.io) server
 exposing one tool, `scan_target`, whose output is the exact same
 `stage`/`fixOwner`/`confidence`-tagged JSON described above — no subprocess
 parsing needed by the agent.
@@ -144,30 +193,30 @@ Add it to your MCP client config (Claude Desktop, Claude Code, etc.):
 ```jsonc
 {
   "mcpServers": {
-    "production-checker": {
+    "orbiitl-check": {
       "command": "npx",
-      "args": ["production-checker-mcp"]
+      "args": ["orbiitl-check-mcp"]
     }
   }
 }
 ```
 
-Or run it directly: `npx production-checker-mcp` (talks JSON-RPC over
+Or run it directly: `npx orbiitl-check-mcp` (talks JSON-RPC over
 stdio — it's not meant to be run interactively).
 
 ### Claude Code skill
 
 A skill that tells an agent how to use `scan_target` responsibly (authorization
 check first, how to group/present `stage`-tagged findings) lives at
-[`integrations/claude-code/production-checker/`](integrations/claude-code/production-checker/).
+[`integrations/claude-code/orbiitl-check/`](integrations/claude-code/orbiitl-check/).
 Install it globally or per-project:
 
 ```bash
 # Global (available in every project):
-cp -r integrations/claude-code/production-checker ~/.claude/skills/
+cp -r integrations/claude-code/orbiitl-check ~/.claude/skills/
 
 # Project-scoped (this project only):
-mkdir -p .claude/skills && cp -r integrations/claude-code/production-checker .claude/skills/
+mkdir -p .claude/skills && cp -r integrations/claude-code/orbiitl-check .claude/skills/
 ```
 
 ## Development
@@ -185,7 +234,7 @@ how to add a new check, and what the review bar looks like.
 
 ## Security
 
-Found a vulnerability in production-checker itself (not a finding it
+Found a vulnerability in orbiitl-check itself (not a finding it
 reported *about* a target)? See [SECURITY.md](SECURITY.md) for how to report
 it privately. See also the authorized-use notice above — only scan targets
 you own or are explicitly authorized to test.
@@ -193,3 +242,4 @@ you own or are explicitly authorized to test.
 ## License
 
 [MIT](LICENSE)
+# orbiitl-check
