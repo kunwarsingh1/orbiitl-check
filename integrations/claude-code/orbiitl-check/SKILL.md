@@ -44,13 +44,13 @@ no parsing needed.
 **Fallback: shell out to the CLI** if the MCP tool isn't configured:
 
 ```bash
-npx orbiitl-check --app https://target.com --json
+orbiitl-check --app https://target.com --json
 ```
 
-(If neither is available yet in this environment, `npm install -g
-orbiitl-check` first, or guide the user through
-`npx -y -p orbiitl-check orbiitl-check-mcp` as an MCP server entry in their client config —
-see this package's README.)
+(If `orbiitl-check` is not installed, clone https://github.com/kunwarsingh1/orbiitl-check,
+run `npm install && npm run build`, then use `node dist/cli.js` in place of
+`orbiitl-check`, or add `node /path/to/orbiitl-check/dist/mcp-server.js` as an MCP
+server entry in the client config - see this package's README.)
 
 ## Reading the result
 

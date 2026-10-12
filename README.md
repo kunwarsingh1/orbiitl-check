@@ -60,11 +60,18 @@ HIGH (1)
 
 ## Install
 
+Requires Node.js 18+. Install straight from GitHub:
+
 ```bash
+git clone https://github.com/kunwarsingh1/orbiitl-check.git
+cd orbiitl-check
 npm install
 npm run build
 npm link   # optional: makes `orbiitl-check` available globally
 ```
+
+Without `npm link`, run it with `node dist/cli.js --app https://target.com`
+from the repo folder.
 
 ## Usage
 
@@ -241,14 +248,14 @@ Add it to your MCP client config (Claude Desktop, Claude Code, etc.):
 {
   "mcpServers": {
     "orbiitl-check": {
-      "command": "npx",
-      "args": ["-y", "-p", "orbiitl-check", "orbiitl-check-mcp"]
+      "command": "node",
+      "args": ["/absolute/path/to/orbiitl-check/dist/mcp-server.js"]
     }
   }
 }
 ```
 
-Or run it directly: `npx -y -p orbiitl-check orbiitl-check-mcp` (talks JSON-RPC over
+Or run it directly: `node dist/mcp-server.js` (talks JSON-RPC over
 stdio — it's not meant to be run interactively).
 
 ### Claude Code skill
