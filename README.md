@@ -242,13 +242,13 @@ Add it to your MCP client config (Claude Desktop, Claude Code, etc.):
   "mcpServers": {
     "orbiitl-check": {
       "command": "npx",
-      "args": ["orbiitl-check-mcp"]
+      "args": ["-y", "-p", "orbiitl-check", "orbiitl-check-mcp"]
     }
   }
 }
 ```
 
-Or run it directly: `npx orbiitl-check-mcp` (talks JSON-RPC over
+Or run it directly: `npx -y -p orbiitl-check orbiitl-check-mcp` (talks JSON-RPC over
 stdio — it's not meant to be run interactively).
 
 ### Claude Code skill

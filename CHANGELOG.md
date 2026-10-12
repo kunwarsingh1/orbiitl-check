@@ -5,6 +5,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-12
+
 ### Added
 - Bulk mode: `--list <file>` scans many domains/subdomains from a text file, one
   at a time, with `--confirm-authorized` (required) and `--max-targets`

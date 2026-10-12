@@ -49,7 +49,7 @@ npx orbiitl-check --app https://target.com --json
 
 (If neither is available yet in this environment, `npm install -g
 orbiitl-check` first, or guide the user through
-`npx orbiitl-check-mcp` as an MCP server entry in their client config —
+`npx -y -p orbiitl-check orbiitl-check-mcp` as an MCP server entry in their client config —
 see this package's README.)
 
 ## Reading the result
