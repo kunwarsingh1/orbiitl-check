@@ -7,7 +7,7 @@
 # The Playwright base image ships a matching Chromium build + every system
 # library it needs (fonts, libnss3, etc.) pre-installed, so `--deep` works
 # out of the box with no extra `apt-get` step.
-FROM mcr.microsoft.com/playwright:v1.64.0-noble AS build
+FROM mcr.microsoft.com/playwright:v1.64.1-noble AS build
 
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -16,7 +16,7 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
-FROM mcr.microsoft.com/playwright:v1.64.0-noble
+FROM mcr.microsoft.com/playwright:v1.64.1-noble
 
 WORKDIR /app
 ENV NODE_ENV=production
